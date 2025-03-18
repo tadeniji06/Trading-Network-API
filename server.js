@@ -1,14 +1,21 @@
 require("dotenv").config();
 
 const express = require("express");
+const http = require("http"); // Add this line
 const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/database");
-// Add this import at the top
-const { startOrderProcessing } = require("./services/orderProcessingService");
+const socketService = require("./services/socketService"); // Add this line
+const {
+  startOrderProcessing,
+} = require("./services/orderProcessingService");
+const {
+  startStrategyProcessing,
+} = require("./services/strategyProcessingService");
+const priceUpdateService = require("./services/priceUpdateService");
 
 // Configuration constants
 const PORT = process.env.PORT || 5000;
@@ -16,6 +23,8 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 
 // Initialize Express app
 const app = express();
+const server = http.createServer(app); // Create HTTP server
+const io = socketService.initializeSocket(server); // Initialize Socket.IO
 
 // Security and utility middleware
 app.use(helmet()); // Security headers
@@ -61,7 +70,13 @@ app.get("/", (req, res) => {
 // Import and use route modules
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/trade", require("./routes/tradeRoutes"));
-// Add additional routes as they are created
+app.use("/api/social", require("./routes/socialRoutes"));
+app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
+app.use("/api/posts", require("./routes/postRoutes"));
+app.use("/api/analytics", require("./routes/analyticsRoutes"));
+app.use("/api/strategies", require("./routes/strategyRoutes"));
+app.use("/api/docs", require("./routes/docRoutes"));
 
 // Error handling middleware
 app.use((req, res, next) => {
@@ -76,18 +91,20 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start the server
-app.listen(PORT, () => {
+// Start the server with Socket.IO
+server.listen(PORT, () => {
+  // Use server.listen instead of app.listen
   console.log(
     `🚀 Server running in ${NODE_ENV} mode on http://localhost:${PORT}`
   );
+
+  // Start services
+  if (process.env.NODE_ENV !== "test") {
+    startOrderProcessing();
+    startStrategyProcessing();
+    priceUpdateService.startPriceUpdates();
+  }
 });
-
-// Start order processing service (if not in test mode)
-
-if (process.env.NODE_ENV !== "test") {
-  startOrderProcessing();
-}
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {

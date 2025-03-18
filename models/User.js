@@ -31,7 +31,7 @@ const UserSchema = new mongoose.Schema({
   portfolio: {
     balance: {
       type: Number,
-      default: 100000, // Starting with $100K as mentioned in README
+      default: 100000,
     },
     holdings: [
       {
@@ -58,6 +58,38 @@ const UserSchema = new mongoose.Schema({
       type: Array,
       default: [],
     },
+  },
+  friends: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  followers: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  following: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  friendRequests: {
+    sent: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    received: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
 
   resetToken: {
