@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -6,6 +7,8 @@ const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/database");
+// Add this import at the top
+const { startOrderProcessing } = require("./services/orderProcessingService");
 
 // Configuration constants
 const PORT = process.env.PORT || 5000;
@@ -57,6 +60,7 @@ app.get("/", (req, res) => {
 
 // Import and use route modules
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/trade", require("./routes/tradeRoutes"));
 // Add additional routes as they are created
 
 // Error handling middleware
@@ -78,6 +82,12 @@ app.listen(PORT, () => {
     `🚀 Server running in ${NODE_ENV} mode on http://localhost:${PORT}`
   );
 });
+
+// Start order processing service (if not in test mode)
+
+if (process.env.NODE_ENV !== "test") {
+  startOrderProcessing();
+}
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
