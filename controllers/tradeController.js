@@ -186,7 +186,6 @@ exports.placeOrder = async (req, res, next) => {
       error: "Limit price is required for limit orders",
     });
   }
-  // Continuing from where we left off...
 
   if (orderType === "stop" && !stopPrice) {
     return res.status(400).json({
