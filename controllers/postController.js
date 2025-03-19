@@ -161,7 +161,8 @@ exports.deletePost = async (req, res, next) => {
       });
     }
     
-    await post.remove();
+    // Use findByIdAndDelete instead of remove()
+    await Post.findByIdAndDelete(req.params.id);
     
     res.status(200).json({
       success: true,
@@ -171,6 +172,7 @@ exports.deletePost = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // @desc    Like a post
 // @route   POST /api/posts/:id/like
