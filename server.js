@@ -36,7 +36,7 @@ app.use(cookieParser()); // Parse cookies
 app.use(
   cors({
     credentials: true,
-    origin: process.env.CLIENT_URL || "*",
+    origin: process.env.CLIENT_URL || process.env.PROD_CLIENT_URL,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
