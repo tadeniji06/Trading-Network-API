@@ -16,6 +16,8 @@ const {
   startStrategyProcessing,
 } = require("./services/strategyProcessingService");
 const priceUpdateService = require("./services/priceUpdateService");
+const passport = require("./config/passport");
+const session = require("express-session");
 
 // Configuration constants
 const PORT = process.env.PORT || 5000;
@@ -23,6 +25,17 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 
 // Initialize Express app
 const app = express();
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === "production" },
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
 const server = http.createServer(app); // Create HTTP server
 const io = socketService.initializeSocket(server); // Initialize Socket.IO
 
@@ -36,7 +49,7 @@ app.use(cookieParser()); // Parse cookies
 app.use(
   cors({
     credentials: true,
-    origin: process.env.CLIENT_URL || process.env.PROD_CLIENT_URL,
+    origin: process.env.CLIENT_URL,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -69,6 +82,7 @@ app.get("/", (req, res) => {
 
 // Import and use route modules
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/user", require("./routes/userRoutes"));
 app.use("/api/trade", require("./routes/tradeRoutes"));
 app.use("/api/social", require("./routes/socialRoutes"));
 app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));

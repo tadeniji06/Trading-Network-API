@@ -1,35 +1,57 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
-
+// Add at the top of your passport.js file
+console.log('Initializing Passport with Google strategy');
+// Initialize Google Strategy
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: '/api/auth/google/callback',
-      scope: ['profile', 'email']
+      callbackURL: `${process.env.API_URL || ''}/api/auth/google/callback`,
+      proxy: true
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        // Check if user already exists
-        let user = await User.findOne({ googleId: profile.id });
-
-        if (user) {
-          return done(null, user);
+        // Extract email from profile
+        const email = profile.emails && profile.emails[0] ? profile.emails[0].value : '';
+        
+        if (!email) {
+          return done(new Error('No email found in Google profile'), null);
         }
-
-        // If not, create new user
-        user = await User.create({
-          googleId: profile.id,
-          name: profile.displayName,
-          email: profile.emails[0].value,
-          avatar: profile.photos[0].value
+        
+        // Check if user already exists by googleId or email
+        let user = await User.findOne({ 
+          $or: [{ googleId: profile.id }, { email: email }] 
         });
 
-        done(null, user);
+        // Flag to determine if this is a new user
+        const isNewUser = !user;
+
+        if (user) {
+          // If user exists but doesn't have googleId (found by email), update the googleId
+          if (!user.googleId) {
+            user.googleId = profile.id;
+            await user.save();
+          }
+        } else {
+          // Create new user
+          user = await User.create({
+            googleId: profile.id,
+            name: profile.displayName,
+            email: email,
+            avatar: profile.photos && profile.photos[0] ? profile.photos[0].value : null
+          });
+        }
+
+        // Add isNewUser property to the user object
+        user.isNewUser = isNewUser;
+        
+        return done(null, user);
       } catch (err) {
-        done(err, null);
+        console.error('Error in Google strategy:', err);
+        return done(err, null);
       }
     }
   )

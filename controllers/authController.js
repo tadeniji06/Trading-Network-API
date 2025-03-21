@@ -1,6 +1,6 @@
-const User = require('../models/User');
-const passport = require('passport');
-const axios = require('axios');
+const User = require("../models/User");
+const passport = require("passport");
+const axios = require("axios");
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -13,7 +13,7 @@ exports.register = async (req, res, next) => {
     const user = await User.create({
       name,
       email,
-      password
+      password,
     });
 
     sendTokenResponse(user, 200, res);
@@ -31,19 +31,19 @@ exports.login = async (req, res, next) => {
 
     // Validate email & password
     if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Please provide an email and password' 
+      return res.status(400).json({
+        success: false,
+        error: "Please provide an email and password",
       });
     }
 
     // Check for user
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid credentials' 
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
       });
     }
 
@@ -51,9 +51,9 @@ exports.login = async (req, res, next) => {
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid credentials' 
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
       });
     }
 
@@ -64,21 +64,63 @@ exports.login = async (req, res, next) => {
 };
 
 // @desc    Google OAuth
-// @route   POST /api/auth/google
+// @route   GET /api/auth/google
 // @access  Public
 exports.googleAuth = (req, res, next) => {
-  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+  console.log("Starting Google authentication");
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+  })(req, res, next);
 };
 
 // @desc    Google OAuth callback
 // @route   GET /api/auth/google/callback
 // @access  Public
 exports.googleCallback = (req, res, next) => {
-  passport.authenticate('google', {
-    failureRedirect: '/login'
-  })(req, res, () => {
-    // Create token and send response
-    sendTokenResponse(req.user, 200, res);
+  console.log("Google callback received");
+  passport.authenticate("google", {
+    failureRedirect: `${
+      process.env.CLIENT_URL
+    }/login?error=${encodeURIComponent("Google authentication failed")}`,
+  })(req, res, (err) => {
+    if (err) {
+      console.error("Google auth error:", err);
+      return res.redirect(
+        `${process.env.CLIENT_URL}/login?error=${encodeURIComponent(
+          "Authentication error"
+        )}`
+      );
+    }
+
+    try {
+      // Create token
+      const token = req.user.getSignedJwtToken();
+
+      // Determine if this is a new user
+      const isNewUser = req.user.isNewUser || false;
+
+      // Prepare user data for frontend
+      const userData = encodeURIComponent(
+        JSON.stringify({
+          id: req.user._id,
+          name: req.user.name,
+          email: req.user.email,
+          avatar: req.user.avatar,
+        })
+      );
+
+      // Redirect to frontend with token and user data
+      res.redirect(
+        `${process.env.CLIENT_URL}/auth/callback?token=${token}&user=${userData}&isNewUser=${isNewUser}`
+      );
+    } catch (err) {
+      console.error("Google callback error:", err);
+      res.redirect(
+        `${process.env.CLIENT_URL}/login?error=${encodeURIComponent(
+          "Authentication processing failed"
+        )}`
+      );
+    }
   });
 };
 
@@ -88,10 +130,10 @@ exports.googleCallback = (req, res, next) => {
 exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
-    
+
     res.status(200).json({
       success: true,
-      data: user
+      data: user,
     });
   } catch (err) {
     next(err);
@@ -103,14 +145,14 @@ exports.getMe = async (req, res, next) => {
 // @access  Private
 exports.logout = async (req, res, next) => {
   try {
-    res.cookie('token', 'none', {
+    res.cookie("token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
-      httpOnly: true
+      httpOnly: true,
     });
-    
+
     res.status(200).json({
       success: true,
-      data: {}
+      data: {},
     });
   } catch (err) {
     next(err);
@@ -126,23 +168,19 @@ const sendTokenResponse = (user, statusCode, res) => {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
     ),
-    httpOnly: true
+    httpOnly: true,
   };
 
   // Use secure cookies in production
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "production") {
     options.secure = true;
   }
 
-  res
-    .status(statusCode)
-    .cookie('token', token, options)
-    .json({
-      success: true,
-      token
-    });
+  res.status(statusCode).cookie("token", token, options).json({
+    success: true,
+    token,
+  });
 };
-
 
 // @desc    Request password reset
 // @route   POST /api/auth/requestReset
@@ -151,27 +189,33 @@ exports.requestPasswordReset = async (req, res, next) => {
   const { email } = req.body;
 
   if (!email) {
-    return res.status(400).json({ success: false, error: 'Email is required' });
+    return res
+      .status(400)
+      .json({ success: false, error: "Email is required" });
   }
 
   try {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ success: false, error: 'User not found' });
+      return res
+        .status(400)
+        .json({ success: false, error: "User not found" });
     }
 
     // Generate 6-digit OTP
-    user.resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetToken = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
     // Token expires in 10 minutes
     user.resetTokenExpires = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
     // Send email with OTP
-    const templateParams = { 
-      to_email: email, 
-      otp_code: user.resetToken 
+    const templateParams = {
+      to_email: email,
+      otp_code: user.resetToken,
     };
 
     await axios.post("https://api.emailjs.com/api/v1.0/email/send", {
@@ -181,12 +225,12 @@ exports.requestPasswordReset = async (req, res, next) => {
       template_params: templateParams,
     });
 
-    res.status(200).json({ 
-      success: true, 
-      message: 'OTP sent successfully' 
+    res.status(200).json({
+      success: true,
+      message: "OTP sent successfully",
     });
   } catch (err) {
-    console.error('Password reset error:', err);
+    console.error("Password reset error:", err);
     next(err);
   }
 };
@@ -198,19 +242,23 @@ exports.resetPassword = async (req, res, next) => {
   const { email, otpCode, newPassword } = req.body;
 
   if (!email || !otpCode || !newPassword) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'All fields are required' 
+    return res.status(400).json({
+      success: false,
+      error: "All fields are required",
     });
   }
 
   try {
     const user = await User.findOne({ email });
 
-    if (!user || user.resetToken !== otpCode || user.resetTokenExpires < Date.now()) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid or expired OTP' 
+    if (
+      !user ||
+      user.resetToken !== otpCode ||
+      user.resetTokenExpires < Date.now()
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid or expired OTP",
       });
     }
 
@@ -222,12 +270,12 @@ exports.resetPassword = async (req, res, next) => {
 
     await user.save();
 
-    res.status(200).json({ 
-      success: true, 
-      message: 'Password reset successful' 
+    res.status(200).json({
+      success: true,
+      message: "Password reset successful",
     });
   } catch (err) {
-    console.error('Error resetting password:', err);
+    console.error("Error resetting password:", err);
     next(err);
   }
 };

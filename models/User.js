@@ -91,7 +91,6 @@ const UserSchema = new mongoose.Schema({
       },
     ],
   },
-
   resetToken: {
     type: String,
   },
@@ -102,6 +101,24 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // New fields for onboarding
+  experience: {
+    type: String,
+    enum: ['beginner', 'intermediate', 'advanced'],
+    default: 'beginner'
+  },
+  interests: {
+    type: [String],
+    default: []
+  },
+  notifications: {
+    type: Boolean,
+    default: true
+  },
+  onboardingComplete: {
+    type: Boolean,
+    default: false
+  }
 });
 
 // Encrypt password using bcrypt
