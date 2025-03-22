@@ -1,14 +1,13 @@
 require("dotenv").config();
 
 const express = require("express");
-const http = require("http"); // Add this line
+const http = require("http");
 const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
-// const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/database");
-const socketService = require("./services/socketService"); // Add this line
+const socketService = require("./services/socketService");
 const {
   startOrderProcessing,
 } = require("./services/orderProcessingService");
@@ -57,18 +56,6 @@ app.use(
 
 // Logging middleware
 app.use(morgan(NODE_ENV === "development" ? "dev" : "combined"));
-
-// Rate limiting middleware
-// Rate limiting middleware
-// const apiLimiter = rateLimit({
-//   windowMs: 120 * 60 * 1000, // 1 hour (increased from 15 minutes)
-//   max: 100000, // limit each IP to 10000 requests per windowMs (increased from 600)
-//   standardHeaders: true,
-//   legacyHeaders: false,
-//   message: { error: "Too many requests, please try again later." },
-// });
-// app.use("/api", apiLimiter);
-
 
 // Connect to database
 connectDB();
