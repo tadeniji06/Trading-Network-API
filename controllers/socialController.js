@@ -1,5 +1,5 @@
 const User = require('../models/User');
-
+const Trade = require('../models/Trade');
 // @desc    Send friend request to a user
 // @route   POST /api/social/friends/request/:userId
 // @access  Private

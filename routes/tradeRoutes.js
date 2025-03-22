@@ -10,7 +10,8 @@ const {
   getTradeHistory,
   getMarketData,
   getCoinDetails,
-  searchCoins
+  searchCoins,
+  closePosition,
 } = require('../controllers/tradeController');
 
 // Protect all routes
@@ -26,5 +27,6 @@ router.get('/history', getTradeHistory);
 router.get('/market', getMarketData);
 router.get('/coins/:id', getCoinDetails);
 router.get('/search', searchCoins);
+router.post('/close-position', closePosition);
 
 module.exports = router;

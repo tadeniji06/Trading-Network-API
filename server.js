@@ -59,14 +59,16 @@ app.use(
 app.use(morgan(NODE_ENV === "development" ? "dev" : "combined"));
 
 // Rate limiting middleware
+// Rate limiting middleware
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 120 * 60 * 1000, // 1 hour (increased from 15 minutes)
+  max: 100000, // limit each IP to 10000 requests per windowMs (increased from 600)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later." },
 });
 app.use("/api", apiLimiter);
+
 
 // Connect to database
 connectDB();

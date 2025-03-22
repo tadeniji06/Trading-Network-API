@@ -159,6 +159,141 @@ exports.executeMarketTrade = async (req, res, next) => {
   }
 };
 
+
+// @desc    Close an existing position
+// @route   POST /api/trade/close-position
+// @access  Private
+exports.closePosition = async (req, res, next) => {
+  const { coinId, percentage = 100 } = req.body;
+
+  if (!coinId) {
+    return res.status(400).json({
+      success: false,
+      error: "Please provide the coinId of the position to close",
+    });
+  }
+
+  // Validate percentage is between 1-100
+  if (percentage <= 0 || percentage > 100) {
+    return res.status(400).json({
+      success: false,
+      error: "Percentage must be between 1 and 100",
+    });
+  }
+
+  try {
+    // Get user
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Find the holding
+    const existingHolding = user.portfolio.holdings.find(
+      (holding) => holding.coinId === coinId
+    );
+
+    if (!existingHolding || existingHolding.quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "You don't have any holdings for this coin",
+      });
+    }
+
+    // Get current price from CoinGecko
+    const currentPrice = await coinGeckoService.getCoinPrice(coinId);
+
+    if (!currentPrice) {
+      return res.status(400).json({
+        success: false,
+        error: "Failed to get current price for this coin",
+      });
+    }
+
+    // Calculate quantity to sell based on percentage
+    const quantityToSell = (existingHolding.quantity * percentage) / 100;
+    const roundedQuantity = Math.min(
+      existingHolding.quantity,
+      parseFloat(quantityToSell.toFixed(8))
+    );
+    
+    // Calculate total value
+    const total = currentPrice * roundedQuantity;
+
+    // Calculate profit/loss
+    const costBasis = existingHolding.averageBuyPrice * roundedQuantity;
+    const profitLoss = total - costBasis;
+    const profitLossPercentage = ((currentPrice - existingHolding.averageBuyPrice) / existingHolding.averageBuyPrice) * 100;
+
+    // Update user balance
+    user.portfolio.balance += total;
+
+    // Update holdings
+    existingHolding.quantity -= roundedQuantity;
+
+    // Remove holding if quantity is 0 or very close to 0 (floating point precision issues)
+    if (existingHolding.quantity < 0.00000001) {
+      user.portfolio.holdings = user.portfolio.holdings.filter(
+        (holding) => holding.coinId !== coinId
+      );
+    }
+
+    // Create trade record
+    const trade = await Trade.create({
+      user: user._id,
+      coinId,
+      coinSymbol: existingHolding.coinSymbol,
+      type: "sell",
+      quantity: roundedQuantity,
+      price: currentPrice,
+      total,
+      status: "completed",
+      orderType: "market",
+      profitLoss,
+      profitLossPercentage
+    });
+
+    // Add to user's history
+    user.portfolio.history.unshift({
+      tradeId: trade._id,
+      coinId,
+      coinSymbol: existingHolding.coinSymbol,
+      type: "sell",
+      quantity: roundedQuantity,
+      price: currentPrice,
+      total,
+      date: Date.now(),
+      profitLoss,
+      profitLossPercentage
+    });
+
+    // Limit history to last 50 trades
+    if (user.portfolio.history.length > 50) {
+      user.portfolio.history = user.portfolio.history.slice(0, 50);
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        trade,
+        profitLoss,
+        profitLossPercentage
+      },
+      message: `Position ${percentage < 100 ? 'partially' : 'fully'} closed with ${profitLoss >= 0 ? 'profit' : 'loss'} of $${Math.abs(profitLoss).toFixed(2)} (${profitLossPercentage.toFixed(2)}%)`,
+    });
+  } catch (err) {
+    console.error("Close position error:", err);
+    next(err);
+  }
+};
+
+
 // @desc    Place a limit or stop order
 // @route   POST /api/trade/order
 // @access  Private
